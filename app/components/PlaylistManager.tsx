@@ -1,187 +1,159 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { MusicTrack } from './PlayerControls';
+import Playlist from './Playlist';
 
 interface PlaylistManagerProps {
   tracks: MusicTrack[];
+  currentTrack: MusicTrack | null;
   onTrackSelect: (trackId: string) => void;
-  onClose: () => void;
-}
-
-interface Playlist {
-  id: string;
-  name: string;
-  tracks: string[];
 }
 
 const PlaylistManager: React.FC<PlaylistManagerProps> = ({
   tracks,
-  onTrackSelect,
-  onClose,
+  currentTrack,
+  onTrackSelect
 }) => {
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null);
+  const [playlists, setPlaylists] = useState<{[key: string]: string[]}>({
+    'Favorites': [],
+    'Recently Played': []
+  });
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [activePlaylist, setActivePlaylist] = useState<string | null>('Favorites');
 
-  useEffect(() => {
-    // Load playlists from localStorage
-    const savedPlaylists = localStorage.getItem('playlists');
-    if (savedPlaylists) {
-      setPlaylists(JSON.parse(savedPlaylists));
-    }
-  }, []);
-
-  const savePlaylists = (updatedPlaylists: Playlist[]) => {
-    localStorage.setItem('playlists', JSON.stringify(updatedPlaylists));
-    setPlaylists(updatedPlaylists);
+  // Get tracks for the active playlist
+  const getPlaylistTracks = () => {
+    if (!activePlaylist || !playlists[activePlaylist]) return [];
+    
+    return playlists[activePlaylist]
+      .map(id => tracks.find(track => track.id === id))
+      .filter((track): track is MusicTrack => track !== undefined);
   };
 
+  // Add current track to a playlist
+  const addToPlaylist = (playlistName: string) => {
+    if (!currentTrack) return;
+    
+    setPlaylists(prev => {
+      const playlist = prev[playlistName] || [];
+      // Don't add duplicates
+      if (playlist.includes(currentTrack.id)) return prev;
+      
+      return {
+        ...prev,
+        [playlistName]: [...playlist, currentTrack.id]
+      };
+    });
+  };
+
+  // Remove track from playlist
+  const removeFromPlaylist = (playlistName: string, trackId: string) => {
+    setPlaylists(prev => ({
+      ...prev,
+      [playlistName]: prev[playlistName].filter(id => id !== trackId)
+    }));
+  };
+
+  // Create a new playlist
   const createPlaylist = () => {
     if (!newPlaylistName.trim()) return;
-    const newPlaylist: Playlist = {
-      id: Date.now().toString(),
-      name: newPlaylistName,
-      tracks: [],
-    };
-    savePlaylists([...playlists, newPlaylist]);
+    
+    setPlaylists(prev => ({
+      ...prev,
+      [newPlaylistName]: []
+    }));
+    
     setNewPlaylistName('');
   };
 
-  const deletePlaylist = (playlistId: string) => {
-    const updatedPlaylists = playlists.filter(p => p.id !== playlistId);
-    savePlaylists(updatedPlaylists);
-    if (selectedPlaylist === playlistId) {
-      setSelectedPlaylist(null);
-    }
+  // Handle playlist selection
+  const handlePlaylistSelect = (name: string) => {
+    setActivePlaylist(name);
   };
 
-  const addTrackToPlaylist = (playlistId: string, trackId: string) => {
-    const updatedPlaylists = playlists.map(playlist => {
-      if (playlist.id === playlistId && !playlist.tracks.includes(trackId)) {
-        return {
-          ...playlist,
-          tracks: [...playlist.tracks, trackId],
-        };
-      }
-      return playlist;
+  // Add current track to recently played
+  React.useEffect(() => {
+    if (!currentTrack) return;
+    
+    setPlaylists(prev => {
+      const recentlyPlayed = prev['Recently Played'] || [];
+      // Remove if already exists to avoid duplicates
+      const filtered = recentlyPlayed.filter(id => id !== currentTrack.id);
+      // Add to the beginning of the list
+      return {
+        ...prev,
+        'Recently Played': [currentTrack.id, ...filtered].slice(0, 10) // Keep only 10 most recent
+      };
     });
-    savePlaylists(updatedPlaylists);
-  };
-
-  const removeTrackFromPlaylist = (playlistId: string, trackId: string) => {
-    const updatedPlaylists = playlists.map(playlist => {
-      if (playlist.id === playlistId) {
-        return {
-          ...playlist,
-          tracks: playlist.tracks.filter(id => id !== trackId),
-        };
-      }
-      return playlist;
-    });
-    savePlaylists(updatedPlaylists);
-  };
-
-  const getPlaylistTracks = (playlistId: string) => {
-    const playlist = playlists.find(p => p.id === playlistId);
-    if (!playlist) return [];
-    return tracks.filter(track => playlist.tracks.includes(track.id));
-  };
+  }, [currentTrack]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="bg-surface p-6 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-text-primary">Playlists</h2>
+    <div className="bg-gray-800 rounded-lg p-4">
+      <h3 className="text-lg font-semibold mb-4">Playlists</h3>
+      
+      {/* Playlist tabs */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {Object.keys(playlists).map(name => (
           <button
-            onClick={onClose}
-            className="text-text-secondary hover:text-text-primary"
+            key={name}
+            onClick={() => handlePlaylistSelect(name)}
+            className={`px-3 py-1 rounded-full text-sm ${
+              activePlaylist === name 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
           >
-            ✕
+            {name}
           </button>
+        ))}
+      </div>
+      
+      {/* Active playlist */}
+      {activePlaylist && (
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <h4 className="font-medium">{activePlaylist}</h4>
+            {currentTrack && (
+              <button
+                onClick={() => addToPlaylist(activePlaylist)}
+                className="text-sm px-2 py-1 bg-blue-600 rounded hover:bg-blue-700"
+              >
+                Add Current Track
+              </button>
+            )}
+          </div>
+          
+          <Playlist
+            name={activePlaylist}
+            tracks={getPlaylistTracks()}
+            onTrackSelect={onTrackSelect}
+            currentTrackId={currentTrack?.id || null}
+          />
         </div>
-
-        <div className="flex gap-4 mb-6">
+      )}
+      
+      {/* Create new playlist */}
+      <div className="mt-4">
+        <h4 className="text-sm font-medium mb-2">Create New Playlist</h4>
+        <div className="flex">
           <input
             type="text"
             value={newPlaylistName}
             onChange={(e) => setNewPlaylistName(e.target.value)}
-            placeholder="New playlist name"
-            className="flex-1 px-4 py-2 bg-background border border-gray-600 rounded-lg text-text-primary"
+            placeholder="Playlist name"
+            className="flex-grow px-3 py-2 bg-gray-700 border border-gray-600 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             onClick={createPlaylist}
-            className="px-6 py-2 bg-accent text-white rounded-lg hover:bg-opacity-90"
+            className="px-4 py-2 bg-blue-600 rounded-r hover:bg-blue-700"
           >
             Create
           </button>
-        </div>
-
-        <div className="grid grid-cols-3 gap-6">
-          <div className="col-span-1 space-y-2">
-            {playlists.map(playlist => (
-              <div
-                key={playlist.id}
-                className={`p-3 rounded-lg cursor-pointer ${
-                  selectedPlaylist === playlist.id
-                    ? 'bg-accent text-white'
-                    : 'bg-background text-text-primary hover:bg-gray-700'
-                }`}
-                onClick={() => setSelectedPlaylist(playlist.id)}
-              >
-                <div className="flex justify-between items-center">
-                  <span>{playlist.name}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deletePlaylist(playlist.id);
-                    }}
-                    className="text-sm opacity-60 hover:opacity-100"
-                  >
-                    Delete
-                  </button>
-                </div>
-                <div className="text-sm opacity-60">
-                  {playlist.tracks.length} tracks
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="col-span-2">
-            {selectedPlaylist && (
-              <div className="space-y-2">
-                {getPlaylistTracks(selectedPlaylist).map(track => (
-                  <div
-                    key={track.id}
-                    className="flex items-center justify-between p-3 bg-background rounded-lg"
-                  >
-                    <div
-                      className="flex-1 cursor-pointer hover:text-accent"
-                      onClick={() => onTrackSelect(track.id)}
-                    >
-                      <div className="font-medium text-text-primary">
-                        {track.name}
-                      </div>
-                      <div className="text-sm text-text-secondary">
-                        {track.artist}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => removeTrackFromPlaylist(selectedPlaylist, track.id)}
-                      className="text-text-secondary hover:text-accent"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default PlaylistManager; 
+export default PlaylistManager;
