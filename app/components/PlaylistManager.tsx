@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { MusicTrack } from './PlayerControls';
+import { MusicTrack } from '../types/MusicTrack';
 import Playlist from './Playlist';
 
 interface PlaylistManagerProps {
@@ -15,10 +15,11 @@ const PlaylistManager: React.FC<PlaylistManagerProps> = ({
   currentTrack,
   onTrackSelect
 }) => {
-  const [playlists, setPlaylists] = useState<{[key: string]: string[]}>({
-    'Favorites': [],
-    'Recently Played': []
+  const [playlists, setPlaylists] = useState<{ [key: string]: string[] }>(() => {
+    const savedPlaylists = localStorage.getItem('playlists');
+    return savedPlaylists ? JSON.parse(savedPlaylists) : {};
   });
+  const [selectedPlaylist, setSelectedPlaylist] = useState<string>('');
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [activePlaylist, setActivePlaylist] = useState<string | null>('Favorites');
 
@@ -40,31 +41,40 @@ const PlaylistManager: React.FC<PlaylistManagerProps> = ({
       // Don't add duplicates
       if (playlist.includes(currentTrack.id)) return prev;
       
-      return {
+      const updatedPlaylists = {
         ...prev,
         [playlistName]: [...playlist, currentTrack.id]
       };
+      localStorage.setItem('playlists', JSON.stringify(updatedPlaylists));
+      return updatedPlaylists;
     });
   };
 
   // Remove track from playlist
   const removeFromPlaylist = (playlistName: string, trackId: string) => {
-    setPlaylists(prev => ({
-      ...prev,
-      [playlistName]: prev[playlistName].filter(id => id !== trackId)
-    }));
+    setPlaylists(prev => {
+      const updatedPlaylists = {
+        ...prev,
+        [playlistName]: prev[playlistName].filter(id => id !== trackId)
+      };
+      localStorage.setItem('playlists', JSON.stringify(updatedPlaylists));
+      return updatedPlaylists;
+    });
   };
 
   // Create a new playlist
   const createPlaylist = () => {
     if (!newPlaylistName.trim()) return;
     
-    setPlaylists(prev => ({
-      ...prev,
-      [newPlaylistName]: []
-    }));
-    
-    setNewPlaylistName('');
+    setPlaylists(prev => {
+      const updatedPlaylists = {
+        ...prev,
+        [newPlaylistName]: []
+      };
+      localStorage.setItem('playlists', JSON.stringify(updatedPlaylists));
+      setNewPlaylistName('');
+      return updatedPlaylists;
+    });
   };
 
   // Handle playlist selection
@@ -81,77 +91,156 @@ const PlaylistManager: React.FC<PlaylistManagerProps> = ({
       // Remove if already exists to avoid duplicates
       const filtered = recentlyPlayed.filter(id => id !== currentTrack.id);
       // Add to the beginning of the list
-      return {
+      const updatedPlaylists = {
         ...prev,
         'Recently Played': [currentTrack.id, ...filtered].slice(0, 10) // Keep only 10 most recent
       };
+      localStorage.setItem('playlists', JSON.stringify(updatedPlaylists));
+      return updatedPlaylists;
     });
   }, [currentTrack]);
 
+  const handleCreatePlaylist = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPlaylistName.trim()) {
+      const updatedPlaylists = {
+        ...playlists,
+        [newPlaylistName]: [],
+      };
+      setPlaylists(updatedPlaylists);
+      localStorage.setItem('playlists', JSON.stringify(updatedPlaylists));
+      setNewPlaylistName('');
+    }
+  };
+
+  const handleAddToPlaylist = (playlistName: string, trackId: string) => {
+    if (!playlists[playlistName].includes(trackId)) {
+      const updatedPlaylists = {
+        ...playlists,
+        [playlistName]: [...playlists[playlistName], trackId],
+      };
+      setPlaylists(updatedPlaylists);
+      localStorage.setItem('playlists', JSON.stringify(updatedPlaylists));
+    }
+  };
+
+  const handleRemoveFromPlaylist = (playlistName: string, trackId: string) => {
+    const updatedPlaylists = {
+      ...playlists,
+      [playlistName]: playlists[playlistName].filter(id => id !== trackId),
+    };
+    setPlaylists(updatedPlaylists);
+    localStorage.setItem('playlists', JSON.stringify(updatedPlaylists));
+  };
+
+  const handleDeletePlaylist = (playlistName: string) => {
+    const { [playlistName]: _, ...remainingPlaylists } = playlists;
+    setPlaylists(remainingPlaylists);
+    localStorage.setItem('playlists', JSON.stringify(remainingPlaylists));
+    if (activePlaylist === playlistName) {
+      setActivePlaylist(null);
+    }
+  };
+
   return (
-    <div className="bg-gray-800 rounded-lg p-4">
-      <h3 className="text-lg font-semibold mb-4">Playlists</h3>
-      
-      {/* Playlist tabs */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {Object.keys(playlists).map(name => (
-          <button
-            key={name}
-            onClick={() => handlePlaylistSelect(name)}
-            className={`px-3 py-1 rounded-full text-sm ${
-              activePlaylist === name 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            {name}
-          </button>
-        ))}
-      </div>
-      
-      {/* Active playlist */}
-      {activePlaylist && (
-        <div className="mb-4">
-          <div className="flex justify-between items-center mb-2">
-            <h4 className="font-medium">{activePlaylist}</h4>
-            {currentTrack && (
-              <button
-                onClick={() => addToPlaylist(activePlaylist)}
-                className="text-sm px-2 py-1 bg-blue-600 rounded hover:bg-blue-700"
-              >
-                Add Current Track
-              </button>
-            )}
-          </div>
-          
-          <Playlist
-            name={activePlaylist}
-            tracks={getPlaylistTracks()}
-            onTrackSelect={onTrackSelect}
-            currentTrackId={currentTrack?.id || null}
-          />
-        </div>
-      )}
-      
-      {/* Create new playlist */}
-      <div className="mt-4">
-        <h4 className="text-sm font-medium mb-2">Create New Playlist</h4>
-        <div className="flex">
+    <div className="bg-gray-800 p-4 rounded-lg">
+      <h2 className="text-xl font-semibold mb-4">Playlists</h2>
+
+      <form onSubmit={handleCreatePlaylist} className="mb-4">
+        <div className="flex space-x-2">
           <input
             type="text"
             value={newPlaylistName}
             onChange={(e) => setNewPlaylistName(e.target.value)}
-            placeholder="Playlist name"
-            className="flex-grow px-3 py-2 bg-gray-700 border border-gray-600 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="New playlist name"
+            className="flex-1 px-3 py-2 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
-            onClick={createPlaylist}
-            className="px-4 py-2 bg-blue-600 rounded-r hover:bg-blue-700"
+            type="submit"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             Create
           </button>
         </div>
+      </form>
+
+      <div className="space-y-4">
+        {Object.entries(playlists).map(([name, trackIds]) => (
+          <div key={name} className="bg-gray-700 p-4 rounded">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-semibold">{name}</h3>
+              <button
+                onClick={() => handleDeletePlaylist(name)}
+                className="text-red-500 hover:text-red-600"
+              >
+                Delete
+              </button>
+            </div>
+            <div className="space-y-2">
+              {trackIds.map((trackId) => {
+                const track = tracks.find((t) => t.id === trackId);
+                return track ? (
+                  <div
+                    key={trackId}
+                    className={`flex justify-between items-center p-2 rounded ${
+                      currentTrack?.id === trackId
+                        ? 'bg-blue-600'
+                        : 'bg-gray-600 hover:bg-gray-500'
+                    }`}
+                  >
+                    <button
+                      onClick={() => onTrackSelect(trackId)}
+                      className="flex-1 text-left"
+                    >
+                      <div className="font-medium">{track.title}</div>
+                      <div className="text-sm text-gray-300">
+                        {track.artist}
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => handleRemoveFromPlaylist(name, trackId)}
+                      className="ml-2 text-red-500 hover:text-red-600"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          </div>
+        ))}
       </div>
+
+      {currentTrack && (
+        <div className="mt-4 p-4 bg-gray-700 rounded">
+          <h3 className="font-semibold mb-2">Add Current Track to Playlist</h3>
+          <div className="flex space-x-2">
+            <select
+              value={activePlaylist || ''}
+              onChange={(e) => setActivePlaylist(e.target.value)}
+              className="flex-1 px-3 py-2 bg-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select a playlist</option>
+              {Object.keys(playlists).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => {
+                if (activePlaylist && currentTrack) {
+                  addToPlaylist(activePlaylist);
+                }
+              }}
+              disabled={!activePlaylist}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from '@supabase/supabase-js';
-import { MusicTrack } from '../components/PlayerControls';
+import { MusicTrack } from '../types/MusicTrack';
 
 // Initialize the Supabase client
 const supabaseUrl = 'https://qxzmlxrfmwowplrtgpuf.supabase.co';
@@ -10,7 +10,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Function to process IPFS URLs
 function processIpfsUrl(url: string): string {
-  if (!url) return 'https://via.placeholder.com/150';
+  if (!url) return '/placeholder-album.png';
   
   // If it's already an HTTP URL, return it as is
   if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -51,20 +51,18 @@ export async function fetchMusicTracksFromSupabase(): Promise<MusicTrack[]> {
     // Transform the data into MusicTrack objects
     const tracks: MusicTrack[] = data.map((item: any) => ({
       id: item.id,
-      name: item.name,
+      title: item.name,
       artist: item.artist_name || item.artist,
       genre: item.genre || '',
-      mood: item.mood || '',
       platform: item.platform,
+      thumbnailUrl: processIpfsUrl(item.thumbnail_uri),
+      audioUrl: processIpfsUrl(item.artifact_uri),
       duration: item.duration || 0,
-      streamingUrl: item.playback_url || '',
-      thumbnailUri: processIpfsUrl(item.thumbnail_uri),
-      displayUri: processIpfsUrl(item.display_uri),
+      uploadedAt: new Date(item.uploaded_at || Date.now()),
       description: item.description || '',
+      mood: item.mood || '',
       tokenId: item.token_id,
       contractAddress: item.contract_address,
-      artifactUri: item.artifact_uri || '',
-      playbackUrl: item.playback_url || '',
       mimeType: item.mime_type || '',
       ipfsGateway: item.ipfs_gateway || 'https://ipfs.io/ipfs/'
     }));
@@ -100,7 +98,7 @@ export async function getStreamingUrl(trackId: string): Promise<string | null> {
 // Function to search music tracks
 export async function searchMusicTracks(
   query: string,
-  fields: string[] = ['name', 'artist']
+  fields: string[] = ['title', 'artist']
 ): Promise<MusicTrack[]> {
   try {
     let searchQuery = supabase
@@ -109,7 +107,8 @@ export async function searchMusicTracks(
 
     // Add search conditions for each field
     fields.forEach(field => {
-      searchQuery = searchQuery.or(`${field}.ilike.%${query}%`);
+      const dbField = field === 'title' ? 'name' : field;
+      searchQuery = searchQuery.or(`${dbField}.ilike.%${query}%`);
     });
 
     const { data, error } = await searchQuery;
@@ -126,20 +125,18 @@ export async function searchMusicTracks(
     // Transform the data into MusicTrack objects
     const tracks: MusicTrack[] = data.map((item: any) => ({
       id: item.id,
-      name: item.name,
+      title: item.name,
       artist: item.artist_name || item.artist,
       genre: item.genre || '',
-      mood: item.mood || '',
       platform: item.platform,
+      thumbnailUrl: processIpfsUrl(item.thumbnail_uri),
+      audioUrl: processIpfsUrl(item.artifact_uri),
       duration: item.duration || 0,
-      streamingUrl: item.playback_url || '',
-      thumbnailUri: processIpfsUrl(item.thumbnail_uri),
-      displayUri: processIpfsUrl(item.display_uri),
+      uploadedAt: new Date(item.uploaded_at || Date.now()),
       description: item.description || '',
+      mood: item.mood || '',
       tokenId: item.token_id,
       contractAddress: item.contract_address,
-      artifactUri: item.artifact_uri || '',
-      playbackUrl: item.playback_url || '',
       mimeType: item.mime_type || '',
       ipfsGateway: item.ipfs_gateway || 'https://ipfs.io/ipfs/'
     }));
@@ -152,95 +149,51 @@ export async function searchMusicTracks(
 }
 
 // Function to filter music tracks
-export async function filterMusicTracks(filters: {
-  genre?: string[];
-  mood?: string[];
-  platform?: string[];
-  minDuration?: number;
-  maxDuration?: number;
-  minTempo?: number;
-  maxTempo?: number;
-  minEnergy?: number;
-  maxEnergy?: number;
-  minDanceability?: number;
-  maxDanceability?: number;
-}): Promise<MusicTrack[]> {
+export async function filterMusicTracks(
+  artist?: string,
+  genre?: string,
+  platform?: string
+): Promise<MusicTrack[]> {
   try {
-    let query = supabase
-      .from('audio_nfts')
-      .select('*');
+    let query = supabase.from('audio_nfts').select('*');
 
-    // Add filter conditions
-    if (filters.genre?.length > 0) {
-      query = query.in('genre', filters.genre);
+    if (artist) {
+      query = query.ilike('artist', `%${artist}%`);
     }
-    if (filters.mood?.length > 0) {
-      query = query.in('mood', filters.mood);
+    if (genre) {
+      query = query.eq('genre', genre);
     }
-    if (filters.platform?.length > 0) {
-      query = query.in('platform', filters.platform);
-    }
-    if (filters.minDuration !== undefined) {
-      query = query.gte('duration', filters.minDuration);
-    }
-    if (filters.maxDuration !== undefined) {
-      query = query.lte('duration', filters.maxDuration);
-    }
-    if (filters.minTempo !== undefined) {
-      query = query.gte('tempo', filters.minTempo);
-    }
-    if (filters.maxTempo !== undefined) {
-      query = query.lte('tempo', filters.maxTempo);
-    }
-    if (filters.minEnergy !== undefined) {
-      query = query.gte('energy', filters.minEnergy);
-    }
-    if (filters.maxEnergy !== undefined) {
-      query = query.lte('energy', filters.maxEnergy);
-    }
-    if (filters.minDanceability !== undefined) {
-      query = query.gte('danceability', filters.minDanceability);
-    }
-    if (filters.maxDanceability !== undefined) {
-      query = query.lte('danceability', filters.maxDanceability);
+    if (platform) {
+      query = query.eq('platform', platform);
     }
 
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error filtering music tracks:', error);
+      console.error('Error fetching music tracks:', error);
       throw error;
     }
 
-    if (!data || data.length === 0) {
-      return [];
-    }
-
-    // Transform the data into MusicTrack objects
-    const tracks: MusicTrack[] = data.map((item: any) => ({
+    return data.map((item: any): MusicTrack => ({
       id: item.id,
-      name: item.name,
+      title: item.name,
       artist: item.artist_name || item.artist,
       genre: item.genre || '',
-      mood: item.mood || '',
       platform: item.platform,
+      thumbnailUrl: processIpfsUrl(item.thumbnail_uri),
+      audioUrl: processIpfsUrl(item.artifact_uri),
       duration: item.duration || 0,
-      streamingUrl: item.playback_url || '',
-      thumbnailUri: processIpfsUrl(item.thumbnail_uri),
-      displayUri: processIpfsUrl(item.display_uri),
+      uploadedAt: new Date(item.uploaded_at || Date.now()),
       description: item.description || '',
+      mood: item.mood || '',
       tokenId: item.token_id,
       contractAddress: item.contract_address,
-      artifactUri: item.artifact_uri || '',
-      playbackUrl: item.playback_url || '',
       mimeType: item.mime_type || '',
       ipfsGateway: item.ipfs_gateway || 'https://ipfs.io/ipfs/'
     }));
-
-    return tracks;
   } catch (error) {
     console.error('Error in filterMusicTracks:', error);
-    return [];
+    throw error;
   }
 }
 

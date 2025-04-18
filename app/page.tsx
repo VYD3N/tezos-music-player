@@ -1,5 +1,5 @@
 import React from 'react'
-import MusicPlayer from './components/MusicPlayer'
+import { MusicPlayer } from './components/MusicPlayer'
 
 export default function Home() {
   return (

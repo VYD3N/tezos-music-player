@@ -1,82 +1,70 @@
 "use client";
 
 import React from 'react';
-import { MusicTrack } from './PlayerControls';
+import { MusicTrack } from '../types/MusicTrack';
 
 interface TrackListProps {
   tracks: MusicTrack[];
   currentTrack: MusicTrack | null;
   onTrackSelect: (track: MusicTrack) => void;
+  isPlaying: boolean;
 }
 
-const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrack, onTrackSelect }) => {
-  // Function to handle image loading errors
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    e.currentTarget.src = 'https://via.placeholder.com/50';
-  };
+export function TrackList({ tracks, currentTrack, onTrackSelect, isPlaying }: TrackListProps) {
+  if (!tracks.length) {
+    return (
+      <div className="text-center py-8 text-gray-400">
+        No tracks found. Try adjusting your filters.
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full max-w-4xl mx-auto bg-gray-800 rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-700">
-          <thead className="bg-gray-700">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                Track
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                Artist
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                Platform
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-gray-800 divide-y divide-gray-700">
-            {tracks.map((track) => (
-              <tr 
-                key={track.id} 
-                className={`hover:bg-gray-700 cursor-pointer transition-colors ${
-                  currentTrack?.id === track.id ? 'bg-gray-700' : ''
-                }`}
-                onClick={() => onTrackSelect(track)}
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10 relative">
-                      <img 
-                        className="h-10 w-10 rounded-md object-cover"
-                        src={track.thumbnailUri || 'https://via.placeholder.com/50'} 
-                        alt={track.name}
-                        onError={handleImageError}
-                      />
-                      {currentTrack?.id === track.id && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-md">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-white">{track.name}</div>
-                      <div className="text-xs text-gray-400">{track.musicType}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-300">{track.artist}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-300">{track.platform}</div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="space-y-2">
+      {tracks.map((track) => (
+        <div
+          key={track.id}
+          className={`flex items-center p-4 rounded-lg cursor-pointer transition-colors duration-200 ${
+            currentTrack?.id === track.id
+              ? 'bg-blue-600 hover:bg-blue-700'
+              : 'bg-gray-800 hover:bg-gray-700'
+          }`}
+          onClick={() => onTrackSelect(track)}
+        >
+          <div className="flex-shrink-0 w-12 h-12 mr-4">
+            <img
+              src={track.thumbnailUrl || '/placeholder-album.png'}
+              alt={`${track.title} thumbnail`}
+              className="w-full h-full object-cover rounded"
+            />
+          </div>
+          <div className="flex-grow">
+            <div className="flex items-center">
+              <h3 className="text-lg font-semibold">{track.title}</h3>
+              {currentTrack?.id === track.id && (
+                <div className="ml-2">
+                  {isPlaying ? (
+                    <span className="text-green-400">▶</span>
+                  ) : (
+                    <span className="text-gray-400">❚❚</span>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="text-sm text-gray-400">{track.artist}</div>
+            <div className="text-xs text-gray-400">{track.genre}</div>
+          </div>
+          <div className="flex-shrink-0 text-sm text-gray-400">
+            {formatDuration(track.duration)}
+          </div>
+        </div>
+      ))}
     </div>
   );
-};
+}
 
-export default TrackList;
+function formatDuration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { MusicTrack } from '../components/PlayerControls';
+import { MusicTrack } from '../types/MusicTrack';
 import { fetchMusicTracksFromSupabase, getStreamingUrl } from '../lib/supabaseClient';
 
 export function useMusicTracks() {
