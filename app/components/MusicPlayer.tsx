@@ -132,7 +132,7 @@ const MusicPlayer: React.FC = () => {
           <TrackList
             tracks={filteredTracks}
             onTrackSelect={handleTrackSelect}
-            currentTrackId={currentTrack?.id}
+            currentTrack={currentTrack}
           />
         )}
       </div>
