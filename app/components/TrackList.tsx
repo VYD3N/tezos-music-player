@@ -6,33 +6,52 @@ import { MusicTrack } from './PlayerControls';
 interface TrackListProps {
   tracks: MusicTrack[];
   onTrackSelect: (track: MusicTrack) => void;
-  currentTrackId?: string;
+  currentTrack: MusicTrack | null;
+  onAddToPlaylist?: (track: MusicTrack) => void;
 }
 
-const TrackList: React.FC<TrackListProps> = ({ tracks, onTrackSelect, currentTrackId }) => {
+const TrackList: React.FC<TrackListProps> = ({
+  tracks,
+  onTrackSelect,
+  currentTrack,
+  onAddToPlaylist,
+}) => {
   return (
     <div className="space-y-2">
       {tracks.map((track) => (
         <div
           key={track.id}
-          onClick={() => onTrackSelect(track)}
-          className={`flex items-center gap-4 p-3 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors ${
-            currentTrackId === track.id ? 'bg-primary bg-opacity-10' : ''
+          className={`p-4 rounded-lg cursor-pointer hover:bg-gray-100 ${
+            currentTrack?.id === track.id ? 'bg-gray-100' : 'bg-white'
           }`}
+          onClick={() => onTrackSelect(track)}
         >
-          <img
-            src={track.thumbnailUri}
-            alt={track.name}
-            className="w-12 h-12 rounded object-cover"
-          />
-          <div className="flex-1">
-            <h3 className="font-medium">{track.name}</h3>
-            <p className="text-sm text-gray-600">{track.artist}</p>
-          </div>
-          <div className="text-sm text-gray-500">
-            <span className="capitalize">{track.musicType}</span>
-            <span className="mx-2">•</span>
-            <span>{track.platform}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              {track.thumbnailUri && (
+                <img src={track.thumbnailUri} alt={track.name} className="w-12 h-12 rounded" />
+              )}
+              <div>
+                <div className="font-semibold">{track.name}</div>
+                <div className="text-sm text-gray-600">{track.artist}</div>
+              </div>
+            </div>
+            <div className="text-sm text-gray-500">
+              <span className="capitalize">{track.genre}</span>
+              <span className="mx-2">•</span>
+              <span>{track.platform}</span>
+            </div>
+            {onAddToPlaylist && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddToPlaylist(track);
+                }}
+                className="ml-4 px-3 py-1 text-sm text-blue-600 hover:text-blue-800"
+              >
+                Add to Playlist
+              </button>
+            )}
           </div>
         </div>
       ))}
