@@ -1,0 +1,120 @@
+id
+
+No description
+
+uuid	uuid	
+token_id
+
+No description
+
+text	text	
+contract_address
+
+No description
+
+text	text	
+artifact_uri
+
+No description
+
+text	text	
+name
+
+No description
+
+text	text	
+artist
+
+No description
+
+text	text	
+platform
+
+No description
+
+text	text	
+minted_at
+
+No description
+
+timestamp with time zone	timestamptz	
+duration
+
+No description
+
+double precision	float8	
+tempo
+
+No description
+
+double precision	float8	
+energy
+
+No description
+
+double precision	float8	
+danceability
+
+No description
+
+double precision	float8	
+genre
+
+No description
+
+text	text	
+mood
+
+No description
+
+text	text	
+spectral_contrast
+
+No description
+
+jsonb	jsonb	
+timestamp
+
+No description
+
+timestamp with time zone	timestamptz	
+processed_at
+
+No description
+
+timestamp with time zone	timestamptz	
+display_uri
+
+No description
+
+text	text	
+thumbnail_uri
+
+No description
+
+text	text	
+mime_type
+
+No description
+
+text	text	
+ipfs_gateway
+
+No description
+
+text	text	
+playback_url
+
+No description
+
+text	text	
+artist_name
+
+No description
+
+text	text	
+description
+
+No description
+
+text	text

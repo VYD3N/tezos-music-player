@@ -1,0 +1,25 @@
+column_name,data_type
+timestamp,timestamp with time zone
+processed_at,timestamp with time zone
+tempo,double precision
+energy,double precision
+danceability,double precision
+minted_at,timestamp with time zone
+duration,double precision
+spectral_contrast,jsonb
+id,uuid
+display_uri,text
+thumbnail_uri,text
+mime_type,text
+ipfs_gateway,text
+playback_url,text
+artist_name,text
+description,text
+token_id,text
+contract_address,text
+artifact_uri,text
+name,text
+artist,text
+platform,text
+genre,text
+mood,text
